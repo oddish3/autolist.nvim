@@ -152,15 +152,25 @@ function M.new_bullet(prev_line_override)
   -- if new_bullet_before, prev_line should be the line below
   local prev_line = fn.getline(fn.line(".") + (prev_line_override and 1 or -1))
   local cur_line = fn.getline(".")
-  local bullet = find_suitable_bullet(prev_line,
+  -- determine list bullet from previous line (increment ordered lists)
+  local base_bullet = find_suitable_bullet(prev_line,
     filetype_lists,
     not prev_line_override)
-  bullet = bullet and utils.get_ordered_add(bullet, 1) -- add 1 if ordered list
+  local next_bullet = base_bullet and utils.get_ordered_add(base_bullet, 1)
 
-  if prev_line:match(pat_colon)
-    and (config.colon.indent_raw
-    or (bullet and config.colon.indent)) then
-    bullet = config.tab .. prev_line:match("^%s*") .. config.colon.preferred .. " "
+  local bullet = nil
+  if prev_line:match(pat_colon) then
+    -- previous line ends with colon: start new list with preferred marker
+    if config.colon.indent_raw or (next_bullet and config.colon.indent) then
+      -- keep indent if configured
+      bullet = config.tab .. prev_line:match("^%s*") .. config.colon.preferred .. " "
+    else
+      -- no indent: marker at start of line
+      bullet = config.colon.preferred .. " "
+    end
+  else
+    -- continue existing list if any
+    bullet = next_bullet
   end
 
   if bullet then -- insert bullet
